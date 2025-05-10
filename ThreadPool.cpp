@@ -25,7 +25,7 @@ class task{
 public:
     void *(*function)(void *); // 任务处理函数
     void *arg;                 // 任务参数
-    struct task *next;         // 链表实现
+    task *next;         // 链表实现
 };
 
 // 线程池类
@@ -39,14 +39,14 @@ private:
     bool stop;                  // 是否运行
 
 //每个线程优先执行此函数
-static void* pthreadrun(void* arg) {
+static void* pthreadrun(void* arg){
     pthread_pool* pool = static_cast<pthread_pool*>(arg);
     pool->consumer(pool);
     return nullptr;
 }
 
 public:
-    // 消费者
+// 消费者
 void *consumer(pthread_pool* pool){
     while (1){
         pthread_mutex_lock(&lock); // 上锁
@@ -144,15 +144,15 @@ void PushTask(void *(*function)(void *), void *arg){
 };
 
 void *calcu(void *dig){
-    int ans = 1, tmp = (long long)dig;
+    long long ans = 1, tmp = (long long)dig;
     while (tmp)
         ans *= tmp--;
-    printf("%lld 的阶乘为：%d\n", (long long)dig, ans);
+    printf("%lld 的阶乘为：%lld\n", (long long)dig, ans);
     return NULL;
 }
 void *producter(int n,pthread_pool &pool){
     while (n--){
-        long long arg = rand() % 12 + 1;
+        long long arg = rand() % 20 + 1;
         pool.PushTask(calcu, (void *)arg);
         usleep(2500);
     }
