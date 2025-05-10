@@ -10,8 +10,6 @@
 #include <cstring>
 #include <string>
 
-int ret = 0;
-
 void sys_err(int ret, std::string str){
     if (ret != 0){
         std::cout << str;
@@ -77,7 +75,7 @@ void *consumer(pthread_pool* pool){
 
 //构造函数，初始化线程池
 pthread_pool(int ThreadCount){
-    ret = pthread_mutex_init(&lock, NULL); // 互斥锁
+    int ret = pthread_mutex_init(&lock, NULL); // 互斥锁
     sys_err(ret, "mutex_init");
 
     ret = pthread_cond_init(&cond, NULL); // 条件变量
