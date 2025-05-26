@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <cstring>
 #include <string>
+#include <functional>
+#include <memory>
 
 void sys_err(int ret, std::string str){
     if (ret != 0){
@@ -21,9 +23,18 @@ void sys_err(int ret, std::string str){
 // 任务队列（链表）类
 class task{
 public:
-    void *(*function)(void *); // 任务处理函数
-    void *arg;                 // 任务参数
+    std::function<void()> function;     // 存储已绑定参数的函数
     task *next;         // 链表实现
+    // 构造函数：使用完美转发和参数包存储任意函数和参数
+    template<typename Func, typename... Args>
+    task(Func&& func, Args&&... args) {
+        // 直接绑定所有参数，不使用占位符
+        function = [func = std::forward<Func>(func), 
+                   args = std::make_tuple(std::forward<Args>(args)...)]() mutable {
+            // 使用std::apply调用函数并传递参数
+            std::apply(func, args);
+        };
+    }
 };
 
 // 线程池类
@@ -67,7 +78,7 @@ void *consumer(pthread_pool* pool){
         pthread_mutex_unlock(&pool->lock);
 
         // 执行任务
-        mytask->function(mytask->arg);
+        mytask->function();
         free(mytask);
     }
     return NULL;
@@ -93,20 +104,23 @@ pthread_pool(int ThreadCount){
 }
 
 // 添加任务到线程池
-void PushTask(void *(*function)(void *), void *arg){
-    task *NewTesk = (task *)malloc(sizeof(task));
-    NewTesk->function = function;
-    NewTesk->arg = arg;
+template<typename Func, typename... Args>
+void PushTask(Func&& func, Args&&... args) {
+    std::unique_ptr<task> NewTask = std::make_unique<task>(
+        std::forward<Func>(func),
+        std::forward<Args>(args)...
+    );
+    
     pthread_mutex_lock(&this->lock); // 上锁，写入公共空间
 
     if (this->task_queue == NULL){
-        this->task_queue = NewTesk;
+        this->task_queue = NewTask.release();       // 转移所有权到队列
     }
     else{
         task *p = this->task_queue;
         while (p->next != NULL)
             p = p->next;
-        p->next = NewTesk;
+        p->next = NewTask.release();        // 转移所有权到队列
     }
 
     pthread_cond_signal(&this->cond);  // 唤醒工作线程
